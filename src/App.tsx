@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminLabels } from "./pages/AdminLabels";
 import { Auth } from "./pages/Auth";
+import { AccessDenied } from "./pages/AccessDenied";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/access-denied" element={<AccessDenied />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/labels" element={<AdminLabels />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

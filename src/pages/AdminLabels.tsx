@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Save, Tag, Database } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { Header } from "@/components/Header"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FraudButton } from "@/components/ui/fraud-button"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface LabelRecord {
   id: number
@@ -26,6 +28,15 @@ export function AdminLabels() {
   ])
   
   const { toast } = useToast()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/access-denied')
+    }
+  }, [user, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

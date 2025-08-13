@@ -55,19 +55,22 @@ export function Header() {
                   size="sm"
                   onClick={() => navigate('/auth')}
                 >
-                  Demo Login
+                  Admin Login
                 </FraudButton>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground">{userRole} ({user?.email})</span>
+                  <span className="text-foreground capitalize">{userRole}</span>
                 </div>
                 <FraudButton 
                   variant="outline" 
                   size="sm"
-                  onClick={logout}
+                  onClick={() => {
+                    logout()
+                    navigate('/')
+                  }}
                 >
                   Sign Out
                 </FraudButton>

@@ -28,7 +28,9 @@ export function Auth() {
           title: "Welcome back!",
           description: "You have been successfully logged in.",
         })
-        navigate('/')
+        // Redirect to admin dashboard if admin, otherwise home
+        const user = JSON.parse(localStorage.getItem('currentUser') || '{}')
+        navigate(user.role === 'admin' ? '/admin' : '/')
       } else {
         toast({
           title: "Login failed",

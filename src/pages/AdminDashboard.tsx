@@ -39,7 +39,7 @@ export function AdminDashboard() {
   // Redirect if not admin
   useEffect(() => {
     if (!user || user.role !== 'admin') {
-      navigate('/auth')
+      navigate('/access-denied')
     }
   }, [user, navigate])
 

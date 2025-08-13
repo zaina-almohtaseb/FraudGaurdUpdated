@@ -33,11 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const mockUser = MOCK_USERS.find(u => u.email === email && u.password === password)
     
     if (mockUser) {
-      setUser({
+      const user = {
         id: mockUser.id,
         email: mockUser.email,
         role: mockUser.role
-      })
+      }
+      setUser(user)
+      // Store user for redirect logic
+      localStorage.setItem('currentUser', JSON.stringify(user))
       return { success: true }
     }
     
@@ -46,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null)
+    localStorage.removeItem('currentUser')
   }
 
   const value = {
