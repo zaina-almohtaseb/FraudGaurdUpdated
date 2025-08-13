@@ -8,7 +8,7 @@ type PredictResponse = {
   retrain?: { should_retrain: boolean; new_records: number; threshold: number };
 };
 
-export default function PredictionForm() {
+function PredictionForm() {
   const [step, setStep] = useState<number>(0);
   const [amount, setAmount] = useState<number>(0);
   const [age, setAge] = useState<string>("U");
@@ -192,4 +192,6 @@ export default function PredictionForm() {
     </form>
   );
 }
+
+export default PredictionForm;
 export { PredictionForm };
