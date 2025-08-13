@@ -1,5 +1,5 @@
 // src/pages/Index.tsx
-import { useState } from "react";
+import useState from "react";
 import PredictionForm from "@/components/PredictionForm";
 import ModelStatus from "@/components/ModelStatus";
 import MetricsPanel from "@/components/MetricsPanel";
