@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Header } from "@/components/Header"
-import { PredictionForm } from "@/components/PredictionForm"
+import PredictionForm from "@/components/PredictionForm";
 import { ModelStatus } from "@/components/ModelStatus"
 import { MetricsPanel } from "@/components/MetricsPanel"
 
