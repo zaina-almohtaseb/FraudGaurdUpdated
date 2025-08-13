@@ -1,18 +1,11 @@
 import { useState } from "react";
-
-// Read API base from Vite env (fallback to localhost)
-const API_BASE =
-  (import.meta as any).env?.VITE_API_BASE || "http://127.0.0.1:5000";
+import { predict } from "@/lib/api";
 
 type PredictResponse = {
   fraud_prediction: 0 | 1;
   fraud_probability: number;
   raw_id?: number;
-  retrain?: {
-    should_retrain: boolean;
-    new_records: number;
-    threshold: number;
-  };
+  retrain?: { should_retrain: boolean; new_records: number; threshold: number };
 };
 
 export default function PredictionForm() {
@@ -29,42 +22,6 @@ export default function PredictionForm() {
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<PredictResponse | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setErr(null);
-    setResult(null);
-
-    try {
-      const res = await fetch(`${API_BASE}/predict`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          step,
-          amount,
-          age,
-          gender,
-          category,
-          merchant: merchant || undefined,
-          zipcodeOri: zipcodeOri || undefined,
-          zipMerchant: zipMerchant || undefined,
-        }),
-      });
-
-      const text = await res.text();
-      const data = (() => {
-        try { return JSON.parse(text); } catch { return { raw: text }; }
-      })();
-
-      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
-      setResult(data);
-    } catch (e: any) {
-      setErr(e.message || "Prediction failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function fillTest() {
     setStep(123);
     setAmount(85.5);
@@ -76,9 +33,32 @@ export default function PredictionForm() {
     setZipMerchant("28007");
   }
 
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setErr(null);
+    setResult(null);
+    try {
+      const data = await predict({
+        step,
+        amount,
+        age,
+        gender,
+        category,
+        merchant: merchant || undefined,
+        zipcodeOri: zipcodeOri || undefined,
+        zipMerchant: zipMerchant || undefined,
+      });
+      setResult(data);
+    } catch (e: any) {
+      setErr(e.message || "Prediction failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      {/* --- fields --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label className="flex flex-col">
           <span>Step (int ≥ 0)</span>
@@ -180,7 +160,6 @@ export default function PredictionForm() {
         </label>
       </div>
 
-      {/* --- actions --- */}
       <div className="flex gap-2">
         <button
           type="submit"
@@ -198,7 +177,6 @@ export default function PredictionForm() {
         </button>
       </div>
 
-      {/* --- messages --- */}
       {err && <div className="text-red-600 text-sm">{err}</div>}
       {result && (
         <div className="text-sm mt-2 space-y-1">
