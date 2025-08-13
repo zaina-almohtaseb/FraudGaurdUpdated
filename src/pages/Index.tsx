@@ -1,8 +1,8 @@
-import { useState } from "react"
-import { Header } from "@/components/Header"
+import useState from "react"
+import Header from "@/components/Header"
 import PredictionForm from "@/components/PredictionForm";
-import { ModelStatus } from "@/components/ModelStatus"
-import { MetricsPanel } from "@/components/MetricsPanel"
+import ModelStatus from "@/components/ModelStatus"
+import MetricsPanel from "@/components/MetricsPanel"
 
 // Mock data for demo
 const mockModelStatus = {
