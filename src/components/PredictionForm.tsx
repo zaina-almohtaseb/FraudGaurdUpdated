@@ -8,7 +8,6 @@ export type PredictionFormProps = {
 function PredictionForm({ onSuccess }: PredictionFormProps) {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // minimal stub submit
     onSuccess?.({ ok: true });
   };
 
@@ -32,4 +31,4 @@ function PredictionForm({ onSuccess }: PredictionFormProps) {
 }
 
 export default PredictionForm;
-export { PredictionForm }; // also export as named for safety
+export { PredictionForm }; // <-- named export too
