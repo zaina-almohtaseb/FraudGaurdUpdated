@@ -24,6 +24,13 @@ export default {
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
+				
+				/* Fraud Detection Portal Colors */
+				deep: 'hsl(var(--deep))',
+				mid: 'hsl(var(--mid))',
+				pale: 'hsl(var(--pale))',
+				text: 'hsl(var(--text))',
+				
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
