@@ -1,10 +1,12 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { RefreshCw, Zap } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { Header } from "@/components/Header"
 import { ModelStatus } from "@/components/ModelStatus"
 import { MetricsPanel } from "@/components/MetricsPanel"
 import { FraudButton } from "@/components/ui/fraud-button"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Mock data
 const mockModelStatus = {
@@ -31,6 +33,15 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(false)
   const [retraining, setRetraining] = useState(false)
   const { toast } = useToast()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/auth')
+    }
+  }, [user, navigate])
 
   const handleRefresh = async () => {
     setLoading(true)
@@ -66,7 +77,7 @@ export function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header userRole="admin" />
+      <Header />
       
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">

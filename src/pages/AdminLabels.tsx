@@ -56,7 +56,7 @@ export function AdminLabels() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header userRole="admin" />
+      <Header />
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">

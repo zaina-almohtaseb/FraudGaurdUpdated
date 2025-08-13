@@ -24,11 +24,9 @@ const mockMetrics = {
 }
 
 const Index = () => {
-  const [userRole] = useState<'guest' | 'user' | 'admin'>('guest')
-
   return (
     <div className="min-h-screen bg-background">
-      <Header userRole={userRole} />
+      <Header />
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 text-center">

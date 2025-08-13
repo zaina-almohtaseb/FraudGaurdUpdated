@@ -1,14 +1,14 @@
 import { Shield, User, Settings, Tag } from "lucide-react"
 import { FraudButton } from "./ui/fraud-button"
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useAuth } from "@/contexts/AuthContext"
 
-interface HeaderProps {
-  userRole?: 'guest' | 'user' | 'admin'
-  onAuthAction?: (action: 'signin' | 'signup' | 'signout') => void
-}
-
-export function Header({ userRole = 'guest', onAuthAction }: HeaderProps) {
+export function Header() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  
+  const userRole = user?.role || 'guest'
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-4">
@@ -46,28 +46,28 @@ export function Header({ userRole = 'guest', onAuthAction }: HeaderProps) {
                 <FraudButton 
                   variant="outline" 
                   size="sm"
-                  onClick={() => onAuthAction?.('signin')}
+                  onClick={() => navigate('/auth')}
                 >
                   Sign In
                 </FraudButton>
                 <FraudButton 
                   variant="gradient" 
                   size="sm"
-                  onClick={() => onAuthAction?.('signup')}
+                  onClick={() => navigate('/auth')}
                 >
-                  Sign Up
+                  Demo Login
                 </FraudButton>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground">{userRole}</span>
+                  <span className="text-foreground">{userRole} ({user?.email})</span>
                 </div>
                 <FraudButton 
                   variant="outline" 
                   size="sm"
-                  onClick={() => onAuthAction?.('signout')}
+                  onClick={logout}
                 >
                   Sign Out
                 </FraudButton>
