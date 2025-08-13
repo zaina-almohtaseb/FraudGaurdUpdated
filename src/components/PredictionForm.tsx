@@ -192,3 +192,4 @@ export default function PredictionForm() {
     </form>
   );
 }
+export { PredictionForm };
