@@ -1,6 +1,6 @@
 // src/components/PredictionForm.tsx
-import { useState } from "react";
-import { API_BASE } from "@/lib/config";
+import useState from "react";
+import API_BASE from "@/lib/config";
 
 type Result = {
   fraud_prediction: number;
