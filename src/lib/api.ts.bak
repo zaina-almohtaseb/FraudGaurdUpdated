@@ -1,0 +1,107 @@
+import { API_BASE, ADMIN_TOKEN } from "./config";
+
+// Types
+export interface ModelStatus {
+  status: string;
+  version: string;
+  last_trained: string;
+}
+
+export interface ModelMetrics {
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  total_samples: number;
+}
+
+export interface PredictionOutput {
+  prediction: number;
+  transaction_id: number;
+}
+
+async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json", ...(init.headers || {}) },
+    ...init,
+  });
+  const text = await res.text();
+  let data: any;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+  return data as T;
+}
+
+// --- public endpoints ---
+export const predict = (payload: any): Promise<PredictionOutput> =>
+  req("/predict", { method: "POST", body: JSON.stringify(payload) });
+
+export const getModelStatus = (): Promise<ModelStatus> =>
+  req("/model/info");
+
+export const getModelMetrics = (): Promise<ModelMetrics> =>
+  req("/model/metrics");
+
+// --- admin (dev) ---
+export const retrain = () =>
+  req("/retrain", { method: "POST", headers: ADMIN_TOKEN ? { Authorization: `Bearer ${ADMIN_TOKEN}` } : {} });
+
+export const saveLabel = (id: number, fraud: 0 | 1) =>
+  req("/label", {
+    method: "POST",
+    headers: { ...(ADMIN_TOKEN ? { Authorization: `Bearer ${ADMIN_TOKEN}` } : {}) },
+    body: JSON.stringify({ id, fraud }),
+  });
+export interface ModelMetrics {
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  total_samples: number;
+}
+
+export interface PredictionOutput {
+  prediction: number;
+  transaction_id: number;
+}
+
+// --- public endpoints ---
+export const predict = (payload: any): Promise<PredictionOutput> =>
+  req("/predict", { method: "POST", body: JSON.stringify(payload) });
+
+export const getModelStatus = (): Promise<ModelStatus> =>
+  req("/model/info");
+
+import { API_BASE, ADMIN_TOKEN } from "./config";
+
+export const getModelMetrics = (): Promise<ModelMetrics> =>
+  req("/model/metrics");
+
+async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json", ...(init.headers || {}) },
+    ...init,
+  });
+  const text = await res.text();
+  let data: any;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+  return data as T;
+}
+
+// --- public endpoints ---
+export const predict = (payload: any) =>
+  req("/predict", { method: "POST", body: JSON.stringify(payload) });
+
+// (we’ll add model/info & metrics later)
+
+// --- admin (dev) ---
+export const retrain = () =>
+  req("/retrain", { method: "POST", headers: ADMIN_TOKEN ? { Authorization: `Bearer ${ADMIN_TOKEN}` } : {} });
+
+export const saveLabel = (id: number, fraud: 0 | 1) =>
+  req("/label", {
+    method: "POST",
+    headers: { ...(ADMIN_TOKEN ? { Authorization: `Bearer ${ADMIN_TOKEN}` } : {}) },
+    body: JSON.stringify({ id, fraud }),
+  });

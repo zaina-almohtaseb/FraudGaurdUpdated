@@ -1,119 +1,126 @@
-// Simplified without recharts for now to avoid build issues
-import { TrendingUp, Target, Users, Database } from "lucide-react"
-import { Card } from "./ui/card"
+// src/components/ui/MetricsPanel.tsx
+import { useEffect, useState } from "react"
+import { Card } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
+import { Gauge } from "lucide-react"
+import type { ModelMetrics as ModelMetricsT } from "@/lib/api"
+import { getModelMetrics } from "@/lib/api"
 
-interface MetricsProps {
-  metrics: {
-    auc_sample: number
-    class_0: number
-    class_1: number
-    total_labeled: number
-  }
-}
+export default function MetricsPanel() {
+  const { toast } = useToast()
+  const [data, setData] = useState<ModelMetricsT | null>(null)
+  const [loading, setLoading] = useState(true)
 
-export function MetricsPanel({ metrics }: MetricsProps) {
-  const classDistribution = [
-    { name: 'Legitimate', value: metrics.class_0, color: '#22c55e' },
-    { name: 'Fraud', value: metrics.class_1, color: '#ef4444' }
-  ]
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const m = await getModelMetrics()
+        if (alive) setData(m)
+      } catch (err: any) {
+        toast({
+          title: "Couldn’t load performance metrics",
+          description: err?.message ?? "Backend error",
+          variant: "destructive",
+        })
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [toast])
 
-  const performanceData = [
-    { metric: 'AUC Score', value: metrics.auc_sample * 100, target: 85 },
-    { metric: 'Precision', value: 92, target: 90 },
-    { metric: 'Recall', value: 88, target: 85 },
-    { metric: 'F1-Score', value: 90, target: 87 }
-  ]
+  const legit = data?.class_0 ?? 0
+  const fraud = data?.class_1 ?? 0
+  const labeled = data?.labeled_transactions ?? legit + fraud
+  const fraudRatio = data ? (data.fraud_ratio ?? (labeled ? fraud / labeled : 0)) : 0
 
   return (
-    <Card className="p-6 shadow-card">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-mid to-pale rounded-lg">
-          <TrendingUp className="w-5 h-5 text-deep" />
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">Performance Metrics</h2>
-          <p className="text-sm text-muted-foreground">Model accuracy and data insights</p>
+    <Card className="p-6 shadow-card bg-white/70">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Gauge className="w-5 h-5 text-[#7a1d27]" />
+          <h2 className="text-lg font-semibold text-[#3e0e12]">Performance Metrics</h2>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4 mb-6">
-        <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-green-600" />
-            <p className="text-sm font-medium text-green-800">AUC Score</p>
+      {loading ? (
+        <SkeletonRows />
+      ) : !data ? (
+        <ErrorNote />
+      ) : (
+        <>
+          <div className="grid md:grid-cols-4 gap-3">
+            <Stat title="Legitimate" value={fmtNum(legit)} />
+            <Stat title="Fraud" value={fmtNum(fraud)} />
+            <Stat title="Total Labels" value={fmtNum(labeled)} />
+            <Stat title="Fraud Ratio" value={`${(fraudRatio * 100).toFixed(1)}%`} />
           </div>
-          <p className="text-2xl font-bold text-green-700">{(metrics.auc_sample * 100).toFixed(1)}%</p>
-        </div>
 
-        <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-blue-600" />
-            <p className="text-sm font-medium text-blue-800">Legitimate</p>
+          <div className="mt-6">
+            <p className="text-sm font-medium text-[#3e0e12] mb-2">Class Distribution</p>
+            <Bar legit={legit} fraud={fraud} />
+            <div className="mt-2 flex items-center justify-between text-xs text-[#6f3a3d]">
+              <span>Legitimate: {fmtNum(legit)}</span>
+              <span>Fraud: {fmtNum(fraud)}</span>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-blue-700">{metrics.class_0.toLocaleString()}</p>
-        </div>
-
-        <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-red-600" />
-            <p className="text-sm font-medium text-red-800">Fraud Cases</p>
-          </div>
-          <p className="text-2xl font-bold text-red-700">{metrics.class_1.toLocaleString()}</p>
-        </div>
-
-        <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Database className="w-4 h-4 text-purple-600" />
-            <p className="text-sm font-medium text-purple-800">Total Labels</p>
-          </div>
-          <p className="text-2xl font-bold text-purple-700">{metrics.total_labeled.toLocaleString()}</p>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="font-semibold mb-4 text-foreground">Performance Metrics</h3>
-          <div className="space-y-3">
-            {performanceData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <span className="font-medium">{item.metric}</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-mid rounded-full"></div>
-                    <span className="text-sm font-semibold">{item.value}%</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    (target: {item.target}%)
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="font-semibold mb-4 text-foreground">Class Distribution</h3>
-          <div className="space-y-4">
-            {classDistribution.map((entry, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full" 
-                    style={{ backgroundColor: entry.color }}
-                  />
-                  <span className="font-medium">{entry.name}</span>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold">{entry.value.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {((entry.value / (metrics.class_0 + metrics.class_1)) * 100).toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </Card>
   )
+}
+
+/* ---------------- helpers ---------------- */
+function Stat({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="p-4 rounded-lg border bg-white/70 border-rose-100 text-[#3e0e12]">
+      <div className="text-sm opacity-80">{title}</div>
+      <div className="text-2xl font-bold">{value}</div>
+    </div>
+  )
+}
+
+function Bar({ legit, fraud }: { legit: number; fraud: number }) {
+  const total = Math.max(1, legit + fraud)
+  const legitPct = (legit / total) * 100
+  const fraudPct = (fraud / total) * 100
+  return (
+    <div className="w-full h-3 rounded bg-slate-200 overflow-hidden border">
+      <div
+        className="h-full bg-green-400"
+        style={{ width: `${legitPct}%` }}
+        title={`Legitimate ${legitPct.toFixed(1)}%`}
+      />
+      <div
+        className="h-full bg-red-400 -mt-3"
+        style={{ width: `${fraudPct}%` }}
+        title={`Fraud ${fraudPct.toFixed(1)}%`}
+      />
+    </div>
+  )
+}
+
+function SkeletonRows() {
+  return (
+    <div className="animate-pulse grid gap-3">
+      <div className="h-20 bg-white/50 rounded" />
+      <div className="h-20 bg-white/50 rounded" />
+      <div className="h-20 bg-white/50 rounded" />
+    </div>
+  )
+}
+
+function ErrorNote() {
+  return (
+    <div className="p-4 rounded-lg border bg-rose-50 text-rose-800">
+      Could not load metrics. Make sure the backend is running and accessible.
+    </div>
+  )
+}
+
+function fmtNum(n?: number) {
+  return (n ?? 0).toLocaleString()
 }

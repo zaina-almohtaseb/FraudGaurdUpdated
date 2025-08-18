@@ -41,6 +41,8 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.55.0",
     "@tanstack/react-query": "^5.83.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -52,7 +54,7 @@
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
-    "react-hook-form": "^7.61.1",
+    "react-hook-form": "^7.62.0",
     "react-resizable-panels": "^2.1.9",
     "react-router-dom": "^6.30.1",
     "sonner": "^1.7.4",
@@ -79,5 +81,18 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19"
-  }
+  },
+  "description": "**URL**: https://lovable.dev/projects/65cd97eb-e9c1-4656-8879-2034faca6b71",
+  "main": "eslint.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zaina-almohtaseb/fraudguard-dash.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zaina-almohtaseb/fraudguard-dash/issues"
+  },
+  "homepage": "https://github.com/zaina-almohtaseb/fraudguard-dash#readme"
 }

@@ -1,84 +1,59 @@
-import { Shield, User, Settings, Tag } from "lucide-react"
-import { FraudButton } from "./ui/fraud-button"
-import { Link, useLocation, useNavigate } from "react-router-dom"
-import { useAuth } from "@/contexts/AuthContext"
+// src/components/ui/Header.tsx
+import { Link, NavLink, useLocation } from "react-router-dom"
+import { cn } from "@/lib/utils"
 
 export function Header() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
-  
-  const userRole = user?.role || 'guest'
+  const { pathname } = useLocation()
+
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-deep to-mid rounded-lg">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">FraudGuard</h1>
-              <p className="text-sm text-muted-foreground">AI-Powered Detection Portal</p>
-            </div>
+    <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
+      <div className="container mx-auto flex h-14 items-center justify-between px-4">
+        {/* Brand */}
+        <Link to="/" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#7a1d27] to-[#d36a76] flex items-center justify-center text-white font-bold">
+            FG
+          </div>
+          <span className="font-semibold text-[#3e0e12]">FraudGuard</span>
+        </Link>
+
+        {/* Nav */}
+        <nav className="flex items-center gap-2">
+          <NavItem to="/" label="Home" active={pathname === "/"} />
+          <NavItem to="/recent" label="Recent" active={pathname.startsWith("/recent")} />
+          <NavItem to="/admin/labels" label="Admin" active={pathname.startsWith("/admin")} />
+        </nav>
+
+        {/* Actions (optional auth routes you already have) */}
+        <div className="hidden sm:flex items-center gap-2">
+          <Link
+            to="/auth"
+            className="px-3 py-1.5 rounded-md border hover:bg-muted text-sm"
+          >
+            Sign In
           </Link>
-          
-          <nav className="flex items-center gap-4">
-            {userRole === 'admin' && (
-              <div className="flex gap-2">
-                <Link to="/admin">
-                  <FraudButton variant={location.pathname === '/admin' ? 'admin' : 'outline'} size="sm" className="gap-2">
-                    <Settings className="w-4 h-4" />
-                    Dashboard
-                  </FraudButton>
-                </Link>
-                <Link to="/admin/labels">
-                  <FraudButton variant={location.pathname === '/admin/labels' ? 'admin' : 'outline'} size="sm" className="gap-2">
-                    <Tag className="w-4 h-4" />
-                    Labels
-                  </FraudButton>
-                </Link>
-              </div>
-            )}
-            
-            {userRole === 'guest' ? (
-              <div className="flex gap-2">
-                <FraudButton 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => navigate('/auth')}
-                >
-                  Sign In
-                </FraudButton>
-                <FraudButton 
-                  variant="gradient" 
-                  size="sm"
-                  onClick={() => navigate('/auth')}
-                >
-                  Admin Login
-                </FraudButton>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground capitalize">{userRole}</span>
-                </div>
-                <FraudButton 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    logout()
-                    navigate('/')
-                  }}
-                >
-                  Sign Out
-                </FraudButton>
-              </div>
-            )}
-          </nav>
+          <Link
+            to="/admin/labels"
+            className="px-3 py-1.5 rounded-md bg-[#7a1d27] text-white text-sm hover:opacity-90"
+          >
+            Admin Login
+          </Link>
         </div>
       </div>
     </header>
+  )
+}
+
+/* -------- small helper -------- */
+function NavItem({ to, label, active }: { to: string; label: string; active: boolean }) {
+  return (
+    <NavLink
+      to={to}
+      className={cn(
+        "px-3 py-1.5 rounded-md text-sm border transition-colors",
+        active ? "bg-rose-100 border-rose-200 text-[#7a1d27]" : "hover:bg-muted"
+      )}
+    >
+      {label}
+    </NavLink>
   )
 }

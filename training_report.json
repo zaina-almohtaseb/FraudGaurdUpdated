@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-08-17T18:16:15.151078Z",
+  "csv_path": "C:\\Users\\zaina\\fraudguard-dash-1\\fraud - fraud.csv",
+  "model_path": "C:\\Users\\zaina\\fraudguard-dash-1\\fraud_model.joblib",
+  "metrics": {
+    "auc": 0.9927195310910015,
+    "accuracy": 0.9943159268402607,
+    "report": {
+      "precision_fraud": 0.855,
+      "recall_fraud": 0.6389,
+      "f1_fraud": 0.7313,
+      "macro_f1": 0.8642
+    }
+  },
+  "features": {
+    "categorical": [
+      "age",
+      "gender",
+      "category",
+      "period"
+    ],
+    "numeric": [
+      "amount",
+      "hour"
+    ],
+    "expected_api_fields": [
+      "step",
+      "amount",
+      "age",
+      "gender",
+      "category"
+    ]
+  },
+  "notes": {
+    "imbalance": "SMOTE unavailable; no oversampling",
+    "model": "GradientBoostingClassifier"
+  }
+}

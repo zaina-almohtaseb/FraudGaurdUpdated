@@ -1,207 +1,166 @@
-// src/components/PredictionForm.tsx
-import useState from "react";
-import API_BASE from "@/lib/config";
-
-type Result = {
-  fraud_prediction: number;
-  fraud_probability: number;
-  raw_id?: number;
-};
+// src/components/ui/PredictionForm.tsx
+import { useMemo, useState } from "react"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FraudButton } from "@/components/ui/fraud-button"
+import { useToast } from "@/hooks/use-toast"
+import { predict, type PredictOut, CATEGORY_OPTIONS } from "@/lib/api"
 
 type Props = {
-  onResult: (r: Result) => void;
-};
+  /** Called with the successful prediction response */
+  onResult?: (res: PredictOut) => void
+}
 
-const CATEGORIES = [
-  "es_transport",
-  "es_food",
-  "es_health",
-  "es_fashion",
-  "es_home",
-  "es_entertainment",
-  "es_others",
-];
+type Form = {
+  step: string
+  amount: string
+  age: string
+  gender: string
+  category: string
+}
+
+const AGE_OPTIONS = [
+  { value: "0", label: "0 (≤18)" },
+  { value: "1", label: "1 (19–25)" },
+  { value: "2", label: "2 (26–35)" },
+  { value: "3", label: "3 (36–45)" },
+  { value: "4", label: "4 (46–55)" },
+  { value: "5", label: "5 (56–65)" },
+  { value: "6", label: "6 (>65)" },
+  { value: "U", label: "U (Unknown)" },
+]
+
+const GENDER_OPTIONS = [
+  { value: "M", label: "M" },
+  { value: "F", label: "F" },
+  { value: "U", label: "U" },
+  { value: "E", label: "E (Enterprise)" },
+]
 
 export default function PredictionForm({ onResult }: Props) {
-  const [step, setStep] = useState<number | "">("");
-  const [amount, setAmount] = useState<number | "">("");
-  const [age, setAge] = useState<string>("U");
-  const [gender, setGender] = useState<"U" | "M" | "F">("U");
-  const [category, setCategory] = useState<string>("es_transport");
-  const [merchant, setMerchant] = useState<string>("");
-  const [zipcodeOri, setZipcodeOri] = useState<string>("");
-  const [zipMerchant, setZipMerchant] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState<Form>({
+    step: "0",
+    amount: "0",
+    age: "U",
+    gender: "U",
+    category: "",
+  })
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  const setField = (k: keyof Form) => (v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-    // minimal validation
-    if (step === "" || step < 0) return setError("Step must be ≥ 0");
-    if (amount === "" || amount < 0) return setError("Amount must be ≥ 0");
+  const valid = useMemo(() => {
+    const s = Number(form.step)
+    const a = Number(form.amount)
+    const catOk = CATEGORY_OPTIONS.includes(form.category as any)
+    return Number.isFinite(s) && s >= 0 &&
+           Number.isFinite(a) && a >= 0 &&
+           !!form.age && !!form.gender && catOk
+  }, [form])
 
-    setLoading(true);
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!valid) {
+      toast({
+        title: "Invalid input",
+        description: "Step & Amount must be non-negative. Age, Gender, and Category are required.",
+        variant: "destructive",
+      })
+      return
+    }
+    setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/predict`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          step: Number(step),
-          amount: Number(amount),
-          age,
-          gender,
-          category,
-          merchant: merchant || undefined,
-          zipcodeOri: zipcodeOri || undefined,
-          zipMerchant: zipMerchant || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
-      onResult({
-        fraud_prediction: data.fraud_prediction,
-        fraud_probability: data.fraud_probability,
-        raw_id: data.raw_id,
-      });
+      const res = await predict({
+        step: Number(form.step),
+        amount: Number(form.amount),
+        age: form.age,
+        gender: form.gender,
+        category: form.category as (typeof CATEGORY_OPTIONS)[number],
+      })
+      onResult?.(res)
+      toast({ title: "Analysis complete" })
     } catch (err: any) {
-      setError(err.message || "Prediction failed");
+      toast({ title: "Prediction failed", description: err?.message ?? "Backend error", variant: "destructive" })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
-  function fillTest() {
-    setStep(6);
-    setAmount(30);
-    setAge("3");
-    setGender("M");
-    setCategory("es_transport");
-    setMerchant("M12345");
-    setZipcodeOri("28007");
-    setZipMerchant("28007");
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-semibold">Step *</span>
-          <input
+    <form className="grid gap-4" onSubmit={onSubmit}>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="step">Step (hours)</Label>
+          <Input
+            id="step"
             type="number"
             min={0}
-            value={step}
-            onChange={(e) => setStep(e.target.value === "" ? "" : Number(e.target.value))}
-            className="rounded-md border p-2"
-            placeholder="e.g., 6"
-            required
+            value={form.step}
+            onChange={(e) => setField("step")(e.target.value)}
           />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-semibold">Amount *</span>
-          <input
+        </div>
+        <div>
+          <Label htmlFor="amount">Amount</Label>
+          <Input
+            id="amount"
             type="number"
             min={0}
             step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
-            className="rounded-md border p-2"
-            placeholder="e.g., 30"
-            required
+            value={form.amount}
+            onChange={(e) => setField("amount")(e.target.value)}
           />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-semibold">Age *</span>
-          <select
-            value={age}
-            onChange={(e) => setAge(e.target.value)}
-            className="rounded-md border p-2"
-          >
-            <option value="U">U (Unknown)</option>
-            {Array.from({ length: 9 }).map((_, i) => (
-              <option key={i} value={String(i)}>{i}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-semibold">Gender *</span>
-          <select
-            value={gender}
-            onChange={(e) => setGender(e.target.value as "U" | "M" | "F")}
-            className="rounded-md border p-2"
-          >
-            <option value="U">U (Unknown)</option>
-            <option value="M">M</option>
-            <option value="F">F</option>
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1 md:col-span-2">
-          <span className="text-sm font-semibold">Category *</span>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="rounded-md border p-2"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Merchant (optional)</span>
-          <input
-            value={merchant}
-            onChange={(e) => setMerchant(e.target.value)}
-            className="rounded-md border p-2"
-            placeholder="e.g., M12345"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Origin Zipcode (optional)</span>
-          <input
-            value={zipcodeOri}
-            onChange={(e) => setZipcodeOri(e.target.value)}
-            className="rounded-md border p-2"
-            placeholder="e.g., 28007"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 md:col-span-2">
-          <span className="text-sm">Merchant Zipcode (optional)</span>
-          <input
-            value={zipMerchant}
-            onChange={(e) => setZipMerchant(e.target.value)}
-            className="rounded-md border p-2"
-            placeholder="e.g., 28007"
-          />
-        </label>
+        </div>
       </div>
 
-      {error && <div className="text-red-600 text-sm">{error}</div>}
+      <div className="grid md:grid-cols-3 gap-4">
+        <div>
+          <Label>Age</Label>
+          <Select value={form.age} onValueChange={setField("age")}>
+            <SelectTrigger><SelectValue placeholder="Age bucket" /></SelectTrigger>
+            <SelectContent>
+              {AGE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 rounded-md bg-rose-700 text-white disabled:opacity-60"
-        >
-          {loading ? "Analyzing..." : "Analyze Transaction"}
-        </button>
-        <button
-          type="button"
-          onClick={fillTest}
-          className="px-4 py-2 rounded-md border"
-        >
-          Fill Test Values
-        </button>
+        <div>
+          <Label>Gender</Label>
+          <Select value={form.gender} onValueChange={setField("gender")}>
+            <SelectTrigger><SelectValue placeholder="Gender" /></SelectTrigger>
+            <SelectContent>
+              {GENDER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Category</Label>
+          <Select value={form.category} onValueChange={setField("category")}>
+            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      <FraudButton
+        type="submit"
+        className="mt-2 w-full md:w-52"
+        variant="gradient"
+        size="lg"
+        disabled={loading || !valid}
+      >
+        {loading ? "Analyzing..." : "Analyze"}
+      </FraudButton>
     </form>
-  );
+  )
 }

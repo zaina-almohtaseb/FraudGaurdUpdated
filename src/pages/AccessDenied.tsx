@@ -1,46 +1,31 @@
-import { Shield, Lock } from "lucide-react"
-import { FraudButton } from "@/components/ui/fraud-button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Link } from "react-router-dom"
+// src/pages/AccessDenied.tsx
+import React from "react";
+import { Link } from "react-router-dom";
 
-export function AccessDenied() {
+export default function AccessDenied() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6 text-center">
-        <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-deep to-mid rounded-xl mx-auto mb-4">
-          <Shield className="w-8 h-8 text-white" />
+    <main className="min-h-[60vh] grid place-items-center p-8">
+      <div className="text-center space-y-4 max-w-md">
+        <h1 className="text-3xl font-bold">Access Denied</h1>
+        <p className="text-muted-foreground">
+          You don’t have permission to view this page. Please sign in with an account that has the
+          required role, or go back to the home page.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Link
+            to="/auth"
+            className="inline-block rounded-md bg-blue-600 text-white px-4 py-2 hover:bg-blue-700"
+          >
+            Go to Sign In
+          </Link>
+          <Link
+            to="/"
+            className="inline-block rounded-md border px-4 py-2 hover:bg-gray-50"
+          >
+            Home
+          </Link>
         </div>
-        
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-center w-12 h-12 bg-muted rounded-lg mx-auto mb-4">
-              <Lock className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-2xl">Access Denied</CardTitle>
-            <CardDescription>
-              You need to be logged in as an admin to access this page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Please sign in with an admin account to continue.
-            </p>
-            
-            <div className="flex flex-col gap-2">
-              <Link to="/auth">
-                <FraudButton variant="gradient" className="w-full">
-                  Sign In
-                </FraudButton>
-              </Link>
-              <Link to="/">
-                <FraudButton variant="outline" className="w-full">
-                  Go Home
-                </FraudButton>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </div>
-  )
+    </main>
+  );
 }

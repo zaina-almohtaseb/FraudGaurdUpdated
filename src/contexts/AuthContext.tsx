@@ -1,75 +1,82 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+// src/contexts/AuthContext.tsx
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
 
-type UserRole = 'guest' | 'user' | 'admin'
+export type Role = "admin" | "user"
 
-interface User {
-  id: string
+export type AuthUser = {
+  id: number | string
   email: string
-  role: UserRole
+  name?: string
+  role: Role
 }
 
-interface AuthContextType {
-  user: User | null
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+type AuthContextValue = {
+  user: AuthUser | null
+  loading: boolean
+  login: (email: string, password: string, role?: Role) => Promise<void>
   logout: () => void
-  isAuthenticated: boolean
+  setUser: (u: AuthUser | null) => void
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+const LS_KEY = "fraudguard_auth_user"
 
-// Mock users for demo
-const MOCK_USERS = [
-  { id: '1', email: 'admin@demo.com', password: 'admin123', role: 'admin' as UserRole },
-  { id: '2', email: 'user@demo.com', password: 'user123', role: 'user' as UserRole },
-]
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUserState] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-
-  const login = async (email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    const mockUser = MOCK_USERS.find(u => u.email === email && u.password === password)
-    
-    if (mockUser) {
-      const user = {
-        id: mockUser.id,
-        email: mockUser.email,
-        role: mockUser.role
+  // load persisted user
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.email && parsed.role) {
+          setUserState(parsed)
+        }
       }
-      setUser(user)
-      // Store user for redirect logic
-      localStorage.setItem('currentUser', JSON.stringify(user))
-      return { success: true }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
     }
-    
-    return { success: false, error: 'Invalid email or password' }
+  }, [])
+
+  const setUser = (u: AuthUser | null) => {
+    setUserState(u)
+    try {
+      if (u) localStorage.setItem(LS_KEY, JSON.stringify(u))
+      else localStorage.removeItem(LS_KEY)
+    } catch {
+      /* ignore */
+    }
   }
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('currentUser')
+  // Fake login for now (email/password unvalidated; role controls access)
+  const login = async (email: string, _password: string, role: Role = "user") => {
+    const newUser: AuthUser = {
+      id: Date.now(),
+      email,
+      name: email.split("@")[0] ?? "User",
+      role,
+    }
+    setUser(newUser)
   }
 
-  const value = {
-    user,
-    login,
-    logout,
-    isAuthenticated: !!user
-  }
+  const logout = () => setUser(null)
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({ user, loading, login, logout, setUser }),
+    [user, loading]
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext)
+  if (!ctx) {
+    throw new Error("useAuth must be used within an AuthProvider")
   }
-  return context
+  return ctx
 }
