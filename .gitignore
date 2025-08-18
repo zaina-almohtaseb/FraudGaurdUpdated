@@ -22,3 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python / virtualenv
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+env/
+
+# Database files
+*.db
+*.sqlite3
+/fraud.db
+/fraudguard.db
+
+# IDE/runtime
+.python-version
