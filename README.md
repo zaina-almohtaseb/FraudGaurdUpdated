@@ -1,73 +1,44 @@
-# Welcome to your Lovable project
+# fraudguard-dash
 
-## Project info
+Full-stack fraud-detection dashboard built with a React + Vite frontend and a small Python API for model prediction and data tasks.
 
-**URL**: https://lovable.dev/projects/65cd97eb-e9c1-4656-8879-2034faca6b71
+## Quick links
+- Repo: https://github.com/zaina-almohtaseb/fraudguard-dash
 
-## How can I edit this code?
+## What you'll find
+- Frontend: TypeScript + React + Vite in `src/` (shadcn-ui + Tailwind)
+- Backend: minimal Flask API entrypoints in `api_server.py` / `app.py` for model inference
+- Models: `model.joblib`, `model_pipeline.pkl`, `fraud_model.joblib` (pretrained artifacts)
+- Data / DB: `fraud.db`, `fraudguard.db` (SQLite used for demo data)
 
-There are several ways of editing your application.
+## Requirements
+- Node.js (v18+) and npm/yarn/pnpm for frontend
+- Python 3.11+ and the packages in `requirements.txt` for the API
 
-**Use Lovable**
+## Quick start (dev)
+1. Create and activate Python virtualenv, install Python deps:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/65cd97eb-e9c1-4656-8879-2034faca6b71) and start prompting.
+    ```powershell
+    python -m venv .venv; .\.venv\Scripts\Activate.ps1
+    pip install -r requirements.txt
+    ```
 
-Changes made via Lovable will be committed automatically to this repo.
+2. Install frontend deps and start the dev server in a second terminal:
 
-**Use your preferred IDE**
+    ```powershell
+    npm install
+    npm run dev
+    ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. Run the API (example):
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+    ```powershell
+    # activate same .venv as above
+    python api_server.py
+    ```
 
-Follow these steps:
+## Notes
+- Avoid committing large or sensitive files. `.gitignore` includes `.venv/` and `*.db` entries; if DB files are tracked already, remove them from tracking with `git rm --cached <file>`.
+- Check `package.json` scripts for build and lint commands.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/65cd97eb-e9c1-4656-8879-2034faca6b71) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+See `docs/DOCUMENTATION.md` for full copy-pasteable documentation and deployment notes.
