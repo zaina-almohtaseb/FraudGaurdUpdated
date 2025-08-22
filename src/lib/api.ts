@@ -21,6 +21,8 @@ export type LegacyPredictIn = PredictIn & {
   newbalanceDest?: number
 }
 
+
+
 /* We accept BOTH shapes above and normalize before sending. */
 type AnyPredictIn = PredictIn | LegacyPredictIn
 
@@ -130,14 +132,30 @@ export const CATEGORY_OPTIONS = [
 ] as const
 
 /* ============================ fetch helper ============================ */
+/** Universal fetch with cookies enabled so admin sessions work. */
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init.headers || {}) },
+    method: init.method ?? "GET",
+    credentials: "include", // <<<<<< IMPORTANT: send cookies (admin session)
+    headers: {
+      Accept: "application/json, text/plain;q=0.9,*/*;q=0.8",
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
     ...init,
   })
-  const text = await res.text()
-  let data: any = text
-  try { data = text ? JSON.parse(text) : null } catch { /* non-JSON */ }
+
+  const contentType = res.headers.get("content-type") || ""
+  const raw = await res.text()
+  let data: any = null
+  if (raw) {
+    try {
+      data = contentType.includes("application/json") ? JSON.parse(raw) : raw
+    } catch {
+      data = raw
+    }
+  }
+
   if (!res.ok) {
     const message =
       (data && (data.message || data.error)) ||
@@ -145,12 +163,13 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
       "Request failed"
     throw new Error(message)
   }
+
+  // Handle empty 204 etc.
   return (data as T) ?? (null as T)
 }
 
 /* ============================ normalization ============================ */
 function normalizePredictIn(p: AnyPredictIn): PredictIn {
-  // Ignore legacy balance fields if present; keep only what backend expects.
   const { step, amount, age, gender, category } = p
   return {
     step: Number(step),
@@ -162,6 +181,11 @@ function normalizePredictIn(p: AnyPredictIn): PredictIn {
 }
 
 /* ============================ API calls ============================ */
+
+// add after other API calls
+export const logout = () =>
+  req<{ ok: boolean }>("/auth/logout", { method: "POST" });
+
 export const predict = (payload: AnyPredictIn) =>
   req<PredictOut>("/predict", {
     method: "POST",
@@ -217,4 +241,5 @@ export const api = {
   status,
   metrics,
   CATEGORY_OPTIONS,
+  logout
 }

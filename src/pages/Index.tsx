@@ -1,89 +1,15 @@
 // src/pages/Index.tsx
-import { useEffect, useMemo, useState } from "react"
-import { Header } from "@/components/Header"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FraudButton } from "@/components/ui/fraud-button"
-import { useToast } from "@/hooks/use-toast"
-import { Activity, Gauge } from "lucide-react"
+import { useMemo, useState } from "react";
+import ModelStatus from "@/components/ModelStatus";
+import MetricsPanel from "@/components/MetricsPanel";
+import { predict } from "@/lib/api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { FraudButton } from "@/components/ui/fraud-button";
+import { useToast } from "@/hooks/use-toast";
 
-/** Small fetch helper using relative paths (works with your Vite proxy) */
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    ...init,
-  })
-  const text = await res.text()
-  let data: any = text
-  try { data = text ? JSON.parse(text) : null } catch {}
-  if (!res.ok) {
-    const msg = (data && (data.message || data.error)) || `${res.status} ${res.statusText}`
-    throw new Error(msg)
-  }
-  return data as T
-}
-
-type PredictOut = {
-  id: number
-  probability_fraud?: number
-  prediction?: number
-  step: number
-  amount: number
-  age: string
-  gender: string
-  category: string
-  hour?: number
-  period?: string
-  timestamp?: string
-}
-
-type StatusOut = {
-  last_trained: string | null
-  features: string[]
-  retrain_threshold: number
-  new_labeled: number
-  performance_metric: number
-  training_samples: number
-}
-
-type MetricsOut = {
-  total_transactions: number
-  labeled_transactions: number
-  fraud_ratio: number
-  class_0: number
-  class_1: number
-}
-
-type Form = {
-  step: string
-  amount: string
-  age: string
-  gender: string
-  category: string
-}
-
-/* ---------- Fixed dropdowns ---------- */
-const AGE_OPTIONS = [
-  { value: "0", label: "0 (≤18)" },
-  { value: "1", label: "1 (19–25)" },
-  { value: "2", label: "2 (26–35)" },
-  { value: "3", label: "3 (36–45)" },
-  { value: "4", label: "4 (46–55)" },
-  { value: "5", label: "5 (56–65)" },
-  { value: "6", label: "6 (>65)" },
-  { value: "U", label: "U (Unknown)" },
-]
-
-const GENDER_OPTIONS = [
-  { value: "M", label: "M" },
-  { value: "F", label: "F" },
-  { value: "U", label: "U" },
-  { value: "E", label: "E (Enterprise)" },
-]
-
-/** EXACT categories from the dataset (normalized) */
+/** Dataset categories (read-only list you trained on) */
 const CATEGORY_OPTIONS = [
   "es_barsandrestaurants",
   "es_contents",
@@ -100,135 +26,221 @@ const CATEGORY_OPTIONS = [
   "es_transportation",
   "es_travel",
   "es_wellnessandbeauty",
-] as const
+] as const;
+
+const AGE_OPTIONS = [
+  { value: "0", label: "0 (≤18)" },
+  { value: "1", label: "1 (19–25)" },
+  { value: "2", label: "2 (26–35)" },
+  { value: "3", label: "3 (36–45)" },
+  { value: "4", label: "4 (46–55)" },
+  { value: "5", label: "5 (56–65)" },
+  { value: "6", label: "6 (>65)" },
+  { value: "U", label: "U (Unknown)" },
+];
+
+const GENDER_OPTIONS = [
+  { value: "M", label: "M" },
+  { value: "F", label: "F" },
+  { value: "U", label: "U" },
+  { value: "E", label: "E (Enterprise)" },
+];
+
+type Result = {
+  cls: 0 | 1;
+  prob: number;   // 0..1
+  raw_id?: number;
+};
+
+function humanizeCategory(s: string) {
+  return s.replace(/^\w\w_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+type Form = {
+  timeOfDay: string; // HH:MM
+  amount: string;
+  age: string;
+  gender: string;
+  category: string;
+  // UI-only (not sent)
+  transactionId: string;
+  merchant: string;
+  zipcodeOri: string;
+  zipMerchant: string;
+};
 
 export default function Index() {
-  const { toast } = useToast()
+  const { toast } = useToast();
+  const [result, setResult] = useState<Result | null>(null);
 
+  // Local form state (transactions block is UI-only)
   const [form, setForm] = useState<Form>({
-    step: "0",
-    amount: "0",
+    timeOfDay: "",
+    amount: "",
     age: "U",
     gender: "U",
-    category: "", // must pick from CATEGORY_OPTIONS
-  })
-  const [loading, setLoading] = useState(false)
-  const [pred, setPred] = useState<PredictOut | null>(null)
+    category: "",
+    transactionId: "",
+    merchant: "",
+    zipcodeOri: "",
+    zipMerchant: "",
+  });
 
-  const [status, setStatus] = useState<StatusOut | null>(null)
-  const [metrics, setMetrics] = useState<MetricsOut | null>(null)
-  const [loadingStats, setLoadingStats] = useState(true)
-
-  // Load model status + metrics
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const [s, m] = await Promise.all([req<StatusOut>("/model/status"), req<MetricsOut>("/model/metrics")])
-        if (!mounted) return
-        setStatus(s)
-        setMetrics(m)
-      } catch (err: any) {
-        toast({
-          title: "Couldn’t load model status",
-          description: err?.message ?? "Please ensure the backend is running.",
-          variant: "destructive",
-        })
-      } finally {
-        if (mounted) setLoadingStats(false)
-      }
-    })()
-    return () => { mounted = false }
-  }, [toast])
-
-  const setField = (k: keyof Form) => (v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const setField = (k: keyof Form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const valid = useMemo(() => {
-    const s = Number(form.step)
-    const a = Number(form.amount)
-    const catOk = CATEGORY_OPTIONS.includes(form.category as any)
-    return Number.isFinite(s) && s >= 0 &&
-           Number.isFinite(a) && a >= 0 &&
-           !!form.age && !!form.gender && catOk
-  }, [form])
+    const hasTime = !!form.timeOfDay;
+    const amt = Number(form.amount);
+    const catOk = CATEGORY_OPTIONS.includes(form.category as any);
+    return hasTime && Number.isFinite(amt) && amt >= 0 && !!form.age && !!form.gender && catOk;
+  }, [form]);
 
-  const onAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Normalize backend response → (probability, class)
+  function normalizeResponse(d: any): Result {
+    // probability candidates
+    const probRaw =
+      d?.probability_fraud ??
+      d?.prediction ??
+      d?.proba ??
+      d?.score ??
+      d?.prob ??
+      d?.p;
+
+    let prob = Number(probRaw);
+    if (!Number.isFinite(prob)) prob = 0;
+
+    // class candidates
+    let clsRaw =
+      d?.is_fraud ??
+      d?.fraud_prediction ??
+      d?.label ??
+      d?.class ??
+      d?.y_pred;
+
+    let cls: 0 | 1;
+    if (clsRaw === 0 || clsRaw === 1 || clsRaw === "0" || clsRaw === "1") {
+      cls = Number(clsRaw) as 0 | 1;
+    } else {
+      // derive from probability (default threshold 0.5)
+      cls = prob >= 0.5 ? 1 : 0;
+    }
+
+    return {
+      cls,
+      prob: Math.max(0, Math.min(1, prob)),
+      raw_id: d?.raw_id ?? d?.id,
+    };
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
     if (!valid) {
       toast({
         title: "Invalid input",
-        description: "Step & Amount must be non-negative. Age/Gender/Category are required.",
+        description: "Enter time, non-negative amount, and select age/gender/category.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
-    setLoading(true)
-    setPred(null)
+    // HH:MM → hour (0–23)
+    const [hStr] = (form.timeOfDay || "0:00").split(":");
+    const hour = Math.max(0, Math.min(23, Number(hStr) || 0));
+
     try {
-      const payload = {
-        step: Number(form.step),
+      // IMPORTANT: only send model features (transactions block is UI-only)
+      const res = await predict({
+        step: hour, // backend expects 'step'; we map time-of-day → step
         amount: Number(form.amount),
-        age: form.age.trim(),
-        gender: form.gender.trim(),
-        category: form.category as typeof CATEGORY_OPTIONS[number],
-      }
-      const p = await req<PredictOut>("/predict", { method: "POST", body: JSON.stringify(payload) })
-      setPred(p)
-      toast({ title: "Analysis complete" })
+        age: form.age,
+        gender: form.gender,
+        category: form.category as (typeof CATEGORY_OPTIONS)[number],
+      } as any);
+
+      const norm = normalizeResponse(res);
+      setResult(norm);
+      toast({ title: "Analysis complete" });
     } catch (err: any) {
-      toast({ title: "Prediction failed", description: err?.message ?? "Backend error", variant: "destructive" })
-    } finally {
-      setLoading(false)
+      toast({
+        title: "Prediction failed",
+        description: err?.message ?? "Backend error",
+        variant: "destructive",
+      });
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f1d8cf]">
-      <Header />
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <header className="text-center mb-10">
+        <h1 className="text-3xl font-bold">AI Fraud Detection Portal</h1>
+        <p className="text-sm opacity-80 mt-2">
+          Submit transaction details for real-time fraud analysis using your trained model
+        </p>
+      </header>
 
-      <main className="container mx-auto px-4 py-10">
-        {/* Hero */}
-        <section className="text-center mb-10">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#3e0e12]">
-            AI Fraud Detection Portal
-          </h1>
-          <p className="mt-3 text-[#5d2a2d] max-w-3xl mx-auto">
-            Submit transaction details for real-time fraud analysis using your trained model
-          </p>
-        </section>
+      {/* Top: Form + Analysis Result */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="rounded-xl border bg-white p-5">
+          <h2 className="font-semibold mb-3">Fraud Detection</h2>
+          <p className="text-sm mb-4 opacity-75">Core features + transaction details</p>
 
-        {/* Top grid: Form + Results */}
-        <section className="grid lg:grid-cols-2 gap-6">
-          {/* FORM */}
-          <Card className="p-6 shadow-card bg-white/70">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-[#7a1d27]" />
-                <h2 className="text-lg font-semibold text-[#3e0e12]">Fraud Detection</h2>
-              </div>
-              <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">Healthy</span>
-            </div>
+          <form className="grid gap-6" onSubmit={onSubmit}>
+            {/* Core Features */}
+            <fieldset className="border rounded-xl p-4">
+              <legend className="px-2 text-sm font-semibold text-muted-foreground">Core Features</legend>
 
-            <form className="grid gap-4" onSubmit={onAnalyze}>
               <div className="grid md:grid-cols-2 gap-4">
+                {/* Time of Day */}
                 <div>
-                  <Label htmlFor="step">Step (hours)</Label>
-                  <Input id="step" type="number" min={0} value={form.step} onChange={(e) => setField("step")(e.target.value)} />
+                  <Label htmlFor="timeOfDay">Time of Day</Label>
+                  <Input
+                    id="timeOfDay"
+                    type="time"
+                    value={form.timeOfDay}
+                    onChange={(e) => setField("timeOfDay")(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Converted to <strong>hour</strong> (0–23) for the model.
+                  </p>
                 </div>
+
+                {/* Amount with static $ */}
                 <div>
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input id="amount" type="number" min={0} step="0.01" value={form.amount} onChange={(e) => setField("amount")(e.target.value)} />
+                  <Label htmlFor="amount">Amount ($)</Label>
+                  <div className="flex">
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center justify-center h-10 px-3 rounded-l-md border border-input border-r-0 bg-muted text-muted-foreground"
+                    >
+                      $
+                    </span>
+                    <Input
+                      id="amount"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      min={0}
+                      step="0.01"
+                      className="
+                        rounded-l-none
+                        [appearance:textfield]
+                        [&::-webkit-outer-spin-button]:appearance-none
+                        [&::-webkit-inner-spin-button]:appearance-none
+                      "
+                      value={form.amount}
+                      onChange={(e) => setField("amount")(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-3 gap-4 mt-4">
                 {/* Age */}
                 <div>
                   <Label>Age</Label>
                   <Select value={form.age} onValueChange={setField("age")}>
                     <SelectTrigger><SelectValue placeholder="Age bucket" /></SelectTrigger>
                     <SelectContent>
-                      {AGE_OPTIONS.map(opt => (
+                      {AGE_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -241,179 +253,118 @@ export default function Index() {
                   <Select value={form.gender} onValueChange={setField("gender")}>
                     <SelectTrigger><SelectValue placeholder="Gender" /></SelectTrigger>
                     <SelectContent>
-                      {GENDER_OPTIONS.map(opt => (
+                      {GENDER_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Category (locked to dataset values) */}
+                {/* Category (humanized) */}
                 <div>
                   <Label>Category</Label>
                   <Select value={form.category} onValueChange={setField("category")}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
-                      {CATEGORY_OPTIONS.map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <SelectItem key={c} value={c}>{humanizeCategory(c)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+            </fieldset>
 
-              <FraudButton
-                type="submit"
-                className="mt-2 w-full md:w-52"
-                variant="gradient"
-                size="lg"
-                disabled={loading || !valid}
-              >
-                {loading ? "Analyzing..." : "Analyze"}
-              </FraudButton>
-            </form>
-          </Card>
+            {/* Transaction Details (optional / UI-only) */}
+            <fieldset className="border rounded-xl p-4">
+              <legend className="px-2 text-sm font-semibold text-muted-foreground">Transaction Details</legend>
 
-          {/* RESULTS */}
-          <Card className="p-6 shadow-card bg-white/70 min-h-[280px] flex items-center justify-center">
-            {!pred ? (
-              <div className="text-center text-[#5d2a2d]">
-                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
-                  <Gauge className="w-6 h-6 text-[#7a1d27]" />
+              <div className="grid md:grid-cols-4 gap-4">
+                <div className="md:col-span-2">
+                  <Label htmlFor="transactionId">Transaction ID (optional)</Label>
+                  <Input
+                    id="transactionId"
+                    value={form.transactionId}
+                    onChange={(e) => setField("transactionId")(e.target.value)}
+                    placeholder="e.g., TXN-123456"
+                  />
                 </div>
-                <h3 className="font-semibold">Ready to analyze</h3>
-                <p className="text-sm text-[#6f3a3d]">Enter step, amount, age, gender, and category</p>
-              </div>
-            ) : (
-              <div className="w-full">
-                <h3 className="text-lg font-semibold text-[#3e0e12] mb-2">Analysis Results</h3>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="p-4 rounded-lg bg-green-50 border border-green-100">
-                    <div className="text-sm text-green-700">Fraud Probability</div>
-                    <div className="text-2xl font-bold text-green-800">
-                      {(((pred.probability_fraud ?? pred.prediction) ?? 0) * 100).toFixed(2)}%
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-rose-50 border border-rose-100">
-                    <div className="text-sm text-rose-700">Transaction ID</div>
-                    <div className="text-2xl font-bold text-rose-800">{pred.id}</div>
-                  </div>
+
+                <div>
+                  <Label htmlFor="merchant">Merchant (optional)</Label>
+                  <Input
+                    id="merchant"
+                    value={form.merchant}
+                    onChange={(e) => setField("merchant")(e.target.value)}
+                    placeholder="e.g., M1826465P"
+                  />
                 </div>
-                <div className="mt-4 grid md:grid-cols-2 gap-3 text-sm">
-                  <InfoRow label="Step" value={pred.step} />
-                  <InfoRow label="Amount" value={pred.amount} />
-                  <InfoRow label="Age" value={pred.age} />
-                  <InfoRow label="Gender" value={pred.gender} />
-                  <InfoRow label="Category" value={pred.category} />
-                  {pred.hour !== undefined && <InfoRow label="Hour" value={pred.hour} />}
-                  {pred.period && <InfoRow label="Period" value={pred.period} />}
-                  <InfoRow label="Timestamp" value={pred.timestamp || "—"} />
+
+                <div>
+                  <Label htmlFor="zipcodeOri">Origin Zip (optional)</Label>
+                  <Input
+                    id="zipcodeOri"
+                    value={form.zipcodeOri}
+                    onChange={(e) => setField("zipcodeOri")(e.target.value)}
+                    placeholder="e.g., 28007"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="zipMerchant">Merchant Zip (optional)</Label>
+                  <Input
+                    id="zipMerchant"
+                    value={form.zipMerchant}
+                    onChange={(e) => setField("zipMerchant")(e.target.value)}
+                    placeholder="e.g., 28007"
+                  />
                 </div>
               </div>
-            )}
-          </Card>
+              <p className="mt-2 text-xs text-muted-foreground">
+                <strong>Note:</strong> These fields are for display only and are <em>not</em> sent to the model.
+              </p>
+            </fieldset>
+
+            <FraudButton type="submit" className="mt-1 w-full md:w-52" variant="gradient" size="lg" disabled={!valid}>
+              Analyze
+            </FraudButton>
+          </form>
         </section>
 
-        {/* Bottom grid: Status + Metrics */}
-        <section className="grid lg:grid-cols-2 gap-6 mt-6">
-          <Card className="p-6 shadow-card bg-white/70">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-[#7a1d27]" />
-                <h2 className="text-lg font-semibold text-[#3e0e12]">Model Status</h2>
+        {/* Analysis Result */}
+        <section className="rounded-xl border bg-white p-5 flex items-center justify-center">
+          {result ? (
+            <div className="text-center">
+              <div className="text-6xl mb-2">{result.cls === 1 ? "🚨" : "✅"}</div>
+              <div className="text-lg font-semibold mb-1">
+                {result.cls === 1 ? "Fraud Likely" : "Legitimate"}
               </div>
-              <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">Healthy</span>
-            </div>
-
-            {loadingStats ? (
-              <SkeletonRows />
-            ) : status ? (
-              <>
-                <div className="grid md:grid-cols-4 gap-3">
-                  <StatCard title="AUC" value={(status.performance_metric ?? 0).toFixed(3)} />
-                  <StatCard title="Last Trained" value={status.last_trained || "—"} />
-                  <StatCard title="Training Rows" value={status.training_samples?.toLocaleString() ?? "—"} />
-                  <StatCard title="Threshold" value={status.retrain_threshold} />
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-sm font-medium text-[#3e0e12] mb-2">Expected Features</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(status.features?.length ? status.features : ["step","amount","age","gender","category"]).map((f) => (
-                      <span key={f} className="px-3 py-1 text-xs rounded-full bg-rose-100 text-[#7a1d27] border border-rose-200">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <ErrorNote />
-            )}
-          </Card>
-
-          <Card className="p-6 shadow-card bg-white/70">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Gauge className="w-5 h-5 text-[#7a1d27]" />
-                <h2 className="text-lg font-semibold text-[#3e0e12]">Performance Metrics</h2>
+              <div className="opacity-80">
+                Probability: {(result.prob * 100).toFixed(2)}%
               </div>
+              {result.raw_id != null && (
+                <div className="text-xs mt-2 opacity-60">raw_id: {result.raw_id}</div>
+              )}
             </div>
-
-            {loadingStats ? (
-              <SkeletonRows />
-            ) : metrics ? (
-              <>
-                <div className="grid md:grid-cols-4 gap-3">
-                  <StatCard title="Legitimate" value={metrics.class_0?.toLocaleString() ?? "—"} />
-                  <StatCard title="Fraud" value={metrics.class_1?.toLocaleString() ?? "—"} />
-                  <StatCard title="Total Labels" value={metrics.labeled_transactions?.toLocaleString() ?? "—"} />
-                  <StatCard title="Fraud Ratio" value={`${((metrics.fraud_ratio ?? 0) * 100).toFixed(1)}%`} />
-                </div>
-              </>
-            ) : (
-              <ErrorNote />
-            )}
-          </Card>
+          ) : (
+            <div className="text-center opacity-70">
+              <div className="text-5xl mb-2">🧠</div>
+              <div className="font-semibold">Ready to analyze</div>
+              <div className="text-sm">Enter time, amount, age, gender, and category</div>
+            </div>
+          )}
         </section>
-      </main>
-    </div>
-  )
-}
+      </div>
 
-/* -------------------- small UI helpers -------------------- */
-function InfoRow({ label, value }: { label: string; value: any }) {
-  return (
-    <div className="flex items-center justify-between px-3 py-2 rounded bg-white/70 border">
-      <span className="text-[#6f3a3d]">{label}</span>
-      <span className="font-mono">{String(value)}</span>
+      {/* Bottom: Model Status + Performance Metrics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <section className="rounded-xl border bg-white p-5">
+          <ModelStatus />
+        </section>
+        <section className="rounded-xl border bg-white p-5">
+          <MetricsPanel />
+        </section>
+      </div>
     </div>
-  )
-}
-
-function StatCard({ title, value }: { title: string; value: string | number }) {
-  return (
-    <div className="p-4 rounded-lg border bg-white/70 border-rose-100 text-[#3e0e12]">
-      <div className="text-sm opacity-80">{title}</div>
-      <div className="text-2xl font-bold">{value}</div>
-    </div>
-  )
-}
-
-function SkeletonRows() {
-  return (
-    <div className="animate-pulse grid gap-3">
-      <div className="h-24 bg-white/50 rounded" />
-      <div className="h-24 bg-white/50 rounded" />
-      <div className="h-24 bg-white/50 rounded" />
-    </div>
-  )
-}
-
-function ErrorNote() {
-  return (
-    <div className="p-4 rounded-lg border bg-rose-50 text-rose-800">
-      Could not load model data. Make sure the backend is running and accessible.
-    </div>
-  )
+  );
 }
