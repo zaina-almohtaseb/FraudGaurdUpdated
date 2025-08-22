@@ -37,6 +37,22 @@ Full-stack fraud-detection dashboard built with a React + Vite frontend and a sm
     python api_server.py
     ```
 
+## Test datasets
+
+This repo includes two sample CSV files for quick local testing of model predictions:
+
+- `Fraud_test_cases__sample_.csv` — sample transactions labeled as fraud (use for testing detection).
+- `Legit_test_cases__sample_.csv` — sample legitimate transactions.
+
+Quick usage (Python):
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -c "import pandas as pd; df = pd.read_csv('Fraud_test_cases__sample_.csv'); print(df.head())"
+```
+
+You can use these files to seed the local SQLite DB, run batch predictions, or as fixtures for tests.
+
 ## Notes
 - Avoid committing large or sensitive files. `.gitignore` includes `.venv/` and `*.db` entries; if DB files are tracked already, remove them from tracking with `git rm --cached <file>`.
 - Check `package.json` scripts for build and lint commands.

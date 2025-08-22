@@ -1,0 +1,4 @@
+step(hour),amount,age,gender,category,fraud,source_row_index
+10,187.48,3',F',es_leisure',1,590504
+7,92.84,4',F',es_sportsandtoys',1,490109
+20,304.89,2',M',es_sportsandtoys',1,124860

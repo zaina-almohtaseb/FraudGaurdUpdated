@@ -71,3 +71,30 @@ Auth error (“useAuth must be used within an AuthProvider”): ensure main.tsx 
 
 Missing packages (e.g., lucide-react):
 npm i lucide-react @radix-ui/react-select class-variance-authority tailwind-merge @radix-ui/react-slot.
+
+---
+
+## Test datasets
+
+Two sample CSV files are included for quick testing:
+
+- `Fraud_test_cases__sample_.csv`
+- `Legit_test_cases__sample_.csv`
+
+Example: load a CSV into the local SQLite `fraud.db` using pandas:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python - << 'PY'
+import pandas as pd
+from sqlalchemy import create_engine
+
+df = pd.read_csv('Fraud_test_cases__sample_.csv')
+engine = create_engine('sqlite:///fraud.db')
+# write to table 'predictions' (append) - change if your schema differs
+df.to_sql('predictions', engine, if_exists='append', index=False)
+print('Imported rows:', len(df))
+PY
+```
+
+Use similar steps for `Legit_test_cases__sample_.csv` and adapt column names to your DB schema.

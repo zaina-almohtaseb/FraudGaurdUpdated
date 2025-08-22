@@ -1,0 +1,4 @@
+step(hour),amount,age,gender,category,fraud,source_row_index
+20,0.64,1',M',es_transportation',0,538208
+22,283.25,3',F',es_home',0,546002
+13,6.84,3',F',es_transportation',0,175479
